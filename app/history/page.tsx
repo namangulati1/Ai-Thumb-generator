@@ -1,4 +1,5 @@
 "use client"
+import { useState, useEffect } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -15,62 +16,27 @@ export default function HistoryPage() {
     redirect("/auth/signin")
   }
 
-  const generations = [
-    {
-      id: "gen_001",
-      prompt: "Tech reviewer holding latest smartphone with shocked expression",
-      style: "Tech",
-      credits: 1,
-      date: "2026-03-20",
-      imageUrl: "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400&h=225&fit=crop",
-      status: "completed",
-    },
-    {
-      id: "gen_002",
-      prompt: "MrBeast style thumbnail with money explosion background",
-      style: "MrBeast",
-      credits: 1,
-      date: "2026-03-19",
-      imageUrl: "https://images.unsplash.com/photo-1611224923853-80b023f02d71?w=400&h=225&fit=crop",
-      status: "completed",
-    },
-    {
-      id: "gen_003",
-      prompt: "Gaming thumbnail with neon lights and controller",
-      style: "Gaming",
-      credits: 1,
-      date: "2026-03-18",
-      imageUrl: "https://images.unsplash.com/photo-1550745165-9bc0b252726f?w-400&h=225&fit=crop",
-      status: "completed",
-    },
-    {
-      id: "gen_004",
-      prompt: "Vlog thumbnail with smiling creator pointing at camera",
-      style: "Vlog",
-      credits: 1,
-      date: "2026-03-17",
-      imageUrl: "https://images.unsplash.com/photo-1568602471122-7832951cc4c5?w=400&h=225&fit=crop",
-      status: "completed",
-    },
-    {
-      id: "gen_005",
-      prompt: "Clickbait thumbnail with red arrows and shocking text",
-      style: "Clickbait",
-      credits: 1,
-      date: "2026-03-16",
-      imageUrl: "https://images.unsplash.com/photo-1611224923853-80b023f02d71?w=400&h=225&fit=crop",
-      status: "completed",
-    },
-    {
-      id: "gen_006",
-      prompt: "Minimalist tech thumbnail with futuristic UI elements",
-      style: "Tech",
-      credits: 1,
-      date: "2026-03-15",
-      imageUrl: "https://images.unsplash.com/photo-1518709268805-4e9042af2176?w=400&h=225&fit=crop",
-      status: "completed",
-    },
-  ]
+  const [generations, setGenerations] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function fetchHistory() {
+      try {
+        const res = await fetch("/api/history")
+        if (res.ok) {
+          const data = await res.json()
+          setGenerations(data.thumbnails)
+        }
+      } catch (error) {
+        console.error("Failed to fetch history:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    if (status === "authenticated") {
+      fetchHistory()
+    }
+  }, [status])
 
   const handleDownload = (id: string) => {
     alert(`Downloading generation ${id}...`)
@@ -201,9 +167,9 @@ export default function HistoryPage() {
                       <Badge className="bg-gray-800 text-gray-300">{gen.style}</Badge>
                     </td>
                     <td className="py-4 px-4">
-                      <Badge className="bg-purple-900/30 text-purple-300">{gen.credits} credit</Badge>
+                      <Badge className="bg-purple-900/30 text-purple-300">{gen.creditsUsed || 1} credit</Badge>
                     </td>
-                    <td className="py-4 px-4 text-gray-400">{gen.date}</td>
+                    <td className="py-4 px-4 text-gray-400">{new Date(gen.createdAt || gen.date || Date.now()).toLocaleDateString()}</td>
                     <td className="py-4 px-4">
                       <div className="flex gap-2">
                         <Button
@@ -230,7 +196,9 @@ export default function HistoryPage() {
 
           {/* Pagination */}
           <div className="flex items-center justify-between mt-8">
-            <p className="text-gray-400">Showing 6 of 42 generations</p>
+            <p className="text-gray-400">
+              {loading ? "Loading..." : `Showing ${generations.length} generations`}
+            </p>
             <div className="flex gap-2">
               <Button variant="outline" size="sm">Previous</Button>
               <Button variant="outline" size="sm" className="bg-gray-800">1</Button>

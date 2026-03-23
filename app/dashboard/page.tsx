@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -13,13 +13,32 @@ import { useSession } from "next-auth/react"
 import { redirect } from "next/navigation"
 
 export default function DashboardPage() {
-  const { data: session, status } = useSession()
+  const { data: session, status, update } = useSession()
   const [prompt, setPrompt] = useState("")
   const [style, setStyle] = useState("mrbeast")
   const [tone, setTone] = useState("clickbait")
   const [textOverlay, setTextOverlay] = useState("")
   const [isGenerating, setIsGenerating] = useState(false)
   const [generatedImage, setGeneratedImage] = useState<string | null>(null)
+  const [recentGenerations, setRecentGenerations] = useState<any[]>([])
+
+  // Fetch recent generations
+  useEffect(() => {
+    async function fetchRecent() {
+      try {
+        const res = await fetch("/api/history")
+        if (res.ok) {
+          const data = await res.json()
+          setRecentGenerations(data.thumbnails.slice(0, 3))
+        }
+      } catch (error) {
+        console.error("Failed to fetch recent history:", error)
+      }
+    }
+    if (status === "authenticated") {
+      fetchRecent()
+    }
+  }, [status])
 
   if (status === "unauthenticated") {
     redirect("/auth/signin")
@@ -51,11 +70,30 @@ export default function DashboardPage() {
       return
     }
     setIsGenerating(true)
-    // Simulate API call
-    setTimeout(() => {
-      setGeneratedImage("https://images.unsplash.com/photo-1611224923853-80b023f02d71?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80")
+    
+    try {
+      const response = await fetch("/api/generate-thumbnail", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt, style, tone, textOverlay }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to generate thumbnail")
+      }
+
+      setGeneratedImage(data.thumbnail.imageUrl)
+      
+      if (update) {
+        await update({ credits: data.thumbnail.remainingCredits })
+      }
+    } catch (error: any) {
+      alert(error.message)
+    } finally {
       setIsGenerating(false)
-    }, 2000)
+    }
   }
 
   const handleDownload = () => {
@@ -248,18 +286,24 @@ export default function DashboardPage() {
               <CardDescription>Your last 3 thumbnails</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-gray-800/50">
-                  <div className="h-12 w-20 rounded bg-gradient-to-r from-purple-900 to-pink-900 flex-shrink-0" />
-                  <div>
-                    <p className="font-medium">Tech review thumbnail #{i}</p>
-                    <p className="text-xs text-gray-400">2 days ago • 1 credit</p>
+              {recentGenerations.length === 0 ? (
+                <p className="text-sm text-gray-500">No thumbs generated yet.</p>
+              ) : (
+                recentGenerations.map((gen) => (
+                  <div key={gen.id} className="flex items-center gap-3 p-3 rounded-lg bg-gray-800/50">
+                    <div className="h-12 w-20 rounded bg-gradient-to-r from-purple-900 to-pink-900 flex-shrink-0 overflow-hidden">
+                      <img src={gen.imageUrl} alt={gen.prompt} className="h-full w-full object-cover" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate">{gen.prompt}</p>
+                      <p className="text-xs text-gray-400">{new Date(gen.createdAt).toLocaleDateString()} • {gen.creditsUsed} credit</p>
+                    </div>
+                    <Button size="sm" variant="ghost" className="ml-auto flex-shrink-0" onClick={() => window.open(gen.imageUrl, '_blank')}>
+                      <Download className="h-4 w-4" />
+                    </Button>
                   </div>
-                  <Button size="sm" variant="ghost" className="ml-auto">
-                    <Download className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
+                ))
+              )}
               <Button variant="outline" className="w-full">
                 <a href="/history">View Full History</a>
               </Button>

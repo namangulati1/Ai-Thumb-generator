@@ -41,7 +41,7 @@ export async function POST(req: Request) {
           await prisma.user.update({
             where: { id: userId },
             data: {
-              subscriptionPlan: plan,
+              subscriptionPlan: plan as any,
               subscriptionStatus: 'ACTIVE',
               credits: { increment: planCredits },
               stripeCustomerId: session.customer as string,
@@ -85,7 +85,7 @@ export async function POST(req: Request) {
 
       case 'invoice.payment_succeeded': {
         const invoice = event.data.object as Stripe.Invoice
-        const subscriptionId = invoice.subscription as string
+        const subscriptionId = (invoice as any).subscription as string
         if (subscriptionId) {
           const subscription = await stripe.subscriptions.retrieve(subscriptionId)
           const userId = subscription.metadata?.userId
