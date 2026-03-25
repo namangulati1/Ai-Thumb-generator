@@ -61,13 +61,8 @@ export async function middleware(request: NextRequest) {
     "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:;"
   )
 
-  // Protect API routes (except auth) with token validation
-  if (path.startsWith('/api/') && !path.includes('/auth/') && !path.includes('/stripe/webhook')) {
-    const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET })
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-  }
+  // Note: API routes are protected internally via getServerSession(authOptions).
+  // getToken() does not work for Database strategy sessions, so it is removed from here.
 
   return response
 }
